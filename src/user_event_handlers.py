@@ -55,9 +55,6 @@ import time,sys,os
 Define some general parameters for the example like various commands
 """
 RMP_CMD = [RMP_MOTION_CMD_ID,0.0,0.0]
-RMP_FORWARD_CMD = [RMP_MOTION_CMD_ID,0.0,0.0]
-RMP_ZERO_CMD = [RMP_MOTION_CMD_ID,0.0,0.0]
-RMP_ROTATE_CMD = [RMP_MOTION_CMD_ID,0.0,0.0]
 RMP_SET_TRACTOR = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,TRACTOR_REQUEST]
 RMP_SET_STANDBY = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,STANDBY_REQUEST]
 RMP_SET_BALANCE = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,BALANCE_REQUEST]
@@ -114,9 +111,6 @@ class RMPEventHandlers:
                                   RMP_INIT_FAILED:self.InitFailedExit,
                                   RMP_IS_DEAD:self.Kill_loop,
                                   RMP_TX_RDY:self.Send_Cmd,
-                                  RMP_FORWARD:self.Send_ForwardCmd,
-                                  RMP_ZERO:self.Send_Zero,
-                                  RMP_ROTATE:self.Send_Rotate,
                                   RMP_RSP_DATA_RDY:self.Get_Rsp,
                                   RMP_GOTO_STANDBY:self.GotoStandby,
                                   RMP_GOTO_TRACTOR:self.GotoTractor,
@@ -141,20 +135,7 @@ class RMPEventHandlers:
         else:
             self.cmd_queue.put(RMP_CMD)
         """
-        #for i in range(5):
         self.cmd_queue.put(RMP_CMD)
-    def Send_ForwardCmd(self, x):
-        #for i in range(5):
-        RMP_FORWARD_CMD = [RMP_MOTION_CMD_ID,x,0.0]
-        self.cmd_queue.put(RMP_FORWARD_CMD)
-    def Send_Zero(self):
-        #for i in range(5):
-        RMP_ZERO_CMD = [RMP_MOTION_CMD_ID,0.0,0.0]
-        self.cmd_queue.put(RMP_ZERO_CMD)
-    def Send_Rotate(self, z):
-        #for i in range(5):
-        RMP_ROTATE_CMD = [RMP_MOTION_CMD_ID,0.0,z]
-        self.cmd_queue.put(RMP_ROTATE_CMD)
 
     def Send_MotionCmd(self, x, z):
         RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, x, z]
@@ -194,7 +175,7 @@ class RMPEventHandlers:
 
     def InitFailedExit(self):
         print "RMP initialization failed...."
-        print "exiting....."
+        print "Exiting....."
         self.inflags.put(RMP_KILL)
         self._continue = False
 

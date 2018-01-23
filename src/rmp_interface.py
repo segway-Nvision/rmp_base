@@ -136,19 +136,19 @@ class RMP:
             self.delay = update_rate
         else:
             print "Bad Update Period needs to be longer than 0.01s....."
-            print "exiting......"
+            print "Exiting......"
             self.out_flags.put(RMP_INIT_FAILED)
             self.Close()
                     
         if (False == self.comm.success):
             print "Could not connect to RMP UDP socket....."
-            print "exiting......"
+            print "Exiting......"
             self.out_flags.put(RMP_INIT_FAILED)
             self.Close()
             
         if (False == self.set_and_verify_config_params(CONFIG_PARAMS)):
             print "Could not configure RMP......"
-            print "exiting......"
+            print "Exiting......"
             self.out_flags.put(RMP_INIT_FAILED)
             self.Close()
         
