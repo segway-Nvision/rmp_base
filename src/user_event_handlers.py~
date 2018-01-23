@@ -120,6 +120,21 @@ class RMPEventHandlers:
 
 
     def Send_Cmd(self):
+        """
+        if ((time.time() - self.start_time) > 1.5):
+            self.start_time = time.time()
+            if self.song_playing:
+                self.cmd_queue.put(RMP_STOP_SONG)
+                self.song_playing = False
+            else:
+                self.cmd_queue.put(RMP_SONGS[self.idx])
+                self.song_playing = True
+                self.idx += 1
+                if (self.idx > 15):
+                    self._continue = False
+        else:
+            self.cmd_queue.put(RMP_CMD)
+        """
         self.cmd_queue.put(RMP_CMD)
 
     def Send_MotionCmd(self, x, z):

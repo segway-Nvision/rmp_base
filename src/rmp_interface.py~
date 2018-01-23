@@ -198,7 +198,7 @@ class RMP:
             queue and send the next command. Then set the TX_RDY flag so the parent
             knows that the queue can be repopulated
             """
-            if ((time.time() - self.last_update_time) > self.delay):
+            if ((time.time() - self.last_update_time) >= self.delay):
                 if not self.cmd_queue.empty():
                     self.update_rmp_commands(self.cmd_queue.get())
                     

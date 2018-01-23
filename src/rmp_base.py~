@@ -42,7 +42,7 @@ MAX_LINEAR_VEL = 0.6
 MAX_ANGULAR_VEL = 3.15
 
 class rmp_base(object):
-    def __init__(self, vel, in_flags):
+    def __init__(self, vel):
         # Name of the node
         self.node_name = rospy.get_name()
         rospy.loginfo("Initialzing subscriber node [%s]." % (self.node_name))
@@ -82,9 +82,8 @@ class rmp_base(object):
         rospy.loginfo("Velocity Components: [%f, %f]" % (vel.twist.linear.x, new_angular_vel))
         lock.release()
 
-    def OnShutdown():
+    def OnShutdown(self):
         rospy.loginfo("[%s] Shutting down." % (self.node_name))
-        in_flags.put(RMP_KILL)
 
 if __name__ == '__main__':
     # Setup communication thread
@@ -102,17 +101,19 @@ if __name__ == '__main__':
     vel.twist.angular.z = 0.0
 
     # Create the subscriber node
-    node = rmp_base(vel, in_flags)
+    node = rmp_base(vel)
 
     # Create event handler and set to BALANCE MODE
     event_handler = RMPEventHandlers(cmd_queue, rsp_queue, in_flags)
     event_handler.GotoBalance()
     rospy.loginfo("Initialization finished!")
 
-    while not rospy.is_shutdown():
+    while rmp_thread.isAlive():
         event_handler.Send_MotionCmd(vel.twist.linear.x, vel.twist.angular.z)
         time.sleep(UPDATE_DELAY_SEC)
 
+    # Keep it spinning to keep the node alive
+    rospy.spin()
     sys.exit()
 
 
