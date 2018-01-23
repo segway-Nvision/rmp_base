@@ -87,7 +87,7 @@ class rmp_base(object):
 
 def Shutdown(in_flags):
     in_flags.put(RMP_KILL)
-    sys.exit()
+    sys.exit(0)
 
 if __name__ == '__main__':
     # Setup communication thread
