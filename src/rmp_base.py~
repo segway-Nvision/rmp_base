@@ -82,8 +82,11 @@ class rmp_base(object):
         rospy.loginfo("Velocity Components: [%f, %f]" % (vel.twist.linear.x, new_angular_vel))
         lock.release()
 
-    def OnShutdown(self):
+    def OnShutdown(self, in_flags):
         rospy.loginfo("[%s] Shutting down." % (self.node_name))
+
+def Shutdown(in_flags):
+    in_flags.put(RMP_KILL)
 
 if __name__ == '__main__':
     # Setup communication thread
@@ -108,12 +111,10 @@ if __name__ == '__main__':
     event_handler.GotoBalance()
     rospy.loginfo("Initialization finished!")
 
-    while rmp_thread.isAlive():
+    while not rospy.is_shutdown():
         event_handler.Send_MotionCmd(vel.twist.linear.x, vel.twist.angular.z)
         time.sleep(UPDATE_DELAY_SEC)
 
-    # Keep it spinning to keep the node alive
-    rospy.spin()
     sys.exit()
 
 

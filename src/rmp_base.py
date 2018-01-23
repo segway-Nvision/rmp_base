@@ -2,7 +2,7 @@
 import rospy
 from system_defines import *
 from user_event_handlers import RMPEventHandlers
-import sys, time, threading, Queue
+import sys, time, threading, Queue, signal
 from rmp_interface import RMP #Imports module. Not limited to modules in this pkg.
 from std_msgs.msg import String #Imports msg
 
@@ -42,7 +42,7 @@ MAX_LINEAR_VEL = 0.6
 MAX_ANGULAR_VEL = 3.15
 
 class rmp_base(object):
-    def __init__(self, vel, in_flags):
+    def __init__(self, vel):
         # Name of the node
         self.node_name = rospy.get_name()
         rospy.loginfo("Initialzing subscriber node [%s]." % (self.node_name))
@@ -82,9 +82,12 @@ class rmp_base(object):
         rospy.loginfo("Velocity Components: [%f, %f]" % (vel.twist.linear.x, new_angular_vel))
         lock.release()
 
-    def OnShutdown():
+    def OnShutdown(self, in_flags):
         rospy.loginfo("[%s] Shutting down." % (self.node_name))
-        in_flags.put(RMP_KILL)
+
+def Shutdown(in_flags):
+    in_flags.put(RMP_KILL)
+    sys.exit()
 
 if __name__ == '__main__':
     # Setup communication thread
@@ -96,13 +99,16 @@ if __name__ == '__main__':
     rmp_thread.setDaemon(True)
     rmp_thread.start()
 
+    # Kill rmp_thread on shutting down
+    signal.signal(signal.SIGINT, signal_handler)
+
     # Setup initial velocity
     vel = TwistStamped()
     vel.twist.linear.x = 0.0
     vel.twist.angular.z = 0.0
 
     # Create the subscriber node
-    node = rmp_base(vel, in_flags)
+    node = rmp_base(vel)
 
     # Create event handler and set to BALANCE MODE
     event_handler = RMPEventHandlers(cmd_queue, rsp_queue, in_flags)
@@ -112,8 +118,6 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         event_handler.Send_MotionCmd(vel.twist.linear.x, vel.twist.angular.z)
         time.sleep(UPDATE_DELAY_SEC)
-
-    sys.exit()
 
 
     #Noriginal thread number after node init 4, after setup communication thread 5, after setup rmp_node sub,pub 7
