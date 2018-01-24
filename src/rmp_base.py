@@ -48,34 +48,21 @@ class rmp_base(object):
         rospy.loginfo("Initialzing subscriber node [%s]." % (self.node_name))
 
         # Setup subscriber
-        rospy.init_node('rmp_base', anonymous = False)
-        self.subVelCmd = rospy.Subscriber("/rmp220/base/vel_cmd", TwistStamped, self.Callback, callback_args = (self.lock, vel))
+        rospy.init_node("rmp_base", anonymous = False)
         self.lock = threading.Lock() # Lock for the callback function of subVelCmd
+        self.subVelCmd = rospy.Subscriber("/rmp220/base/vel_cmd", TwistStamped, self.SetVelocity, callback_args = (self.lock, vel))
         rospy.on_shutdown(self.OnShutdown) # Shutdown behavior
         rospy.loginfo("[%s] Initialzed." % (self.node_name))
 
-    def SetupParameter(self, param_name, default_value):
-        value = rospy.get_param(param_name, default_value)
-        rospy.set_param(param_name, value) # Write to parameter server for transparancy
-        rospy.loginfo("[%s] %s = %s " % (self.node_name, param_name, value))
-        return value
-
-    def Callback(self, msg, args):
+    def SetVelocity(self, msg, args):
         lock = args[0]
         vel  = args[1]
-
-        thread = threading.Thread(target = self.SetVelocity, args = (msg, lock, vel))
-        thread.setDaemon(True)
-        thread.start()
-
-    def SetVelocity(self, msg, lock, vel):
         new_linear_vel  = msg.twist.linear.x
         new_angular_vel = msg.twist.angular.z
 
-        lock.acquire()
         # Critical section
-        # Update if the new velocity is in bound
-        if (abs(new_linear_vel) < MAX_LINEAR_VEL):
+        lock.acquire()
+        if (abs(new_linear_vel) < MAX_LINEAR_VEL): # Update if the new velocity is in bound
             vel.twist.linear.x = new_linear_vel
         if (abs(new_angular_vel) < MAX_ANGULAR_VEL):
             vel.twist.angular.z = new_angular_vel
@@ -86,7 +73,7 @@ class rmp_base(object):
         rospy.loginfo("[%s] Shutting down." % (self.node_name))
 
 def Shutdown(in_flags):
-    in_flags.put(RMP_KILL)
+    in_flags.put(RMP_KILL) # Kill rmp_thread
     sys.exit(0)
 
 if __name__ == '__main__':
@@ -96,28 +83,23 @@ if __name__ == '__main__':
     in_flags  = multiprocessing.Queue()
     out_flags = multiprocessing.Queue()
     rmp_thread = threading.Thread(target = RMP, args = (rmp_addr, rsp_queue, cmd_queue, in_flags, out_flags, UPDATE_DELAY_SEC, LOG_DATA))
-    rmp_thread.setDaemon(True)
+    #rmp_thread.setDaemon(True)
     rmp_thread.start()
 
-    # Kill rmp_thread on shutting down
+    # Ctrl + C handler
     signal.signal(signal.SIGINT, signal_handler)
 
-    # Setup initial velocity
+    # Create event handler and set to BALANCE MODE
     vel = TwistStamped()
-    vel.twist.linear.x = 0.0
-    vel.twist.angular.z = 0.0
+    event_handler = RMPEventHandlers(cmd_queue, rsp_queue, in_flags, vel)
+    event_handler.GotoBalance()
 
     # Create the subscriber node
     node = rmp_base(vel)
-
-    # Create event handler and set to BALANCE MODE
-    event_handler = RMPEventHandlers(cmd_queue, rsp_queue, in_flags)
-    event_handler.GotoBalance()
     rospy.loginfo("Initialization finished!")
 
-    while not rospy.is_shutdown():
-        event_handler.Send_MotionCmd(vel.twist.linear.x, vel.twist.angular.z)
-        time.sleep(UPDATE_DELAY_SEC)
-
+    while not rospy.is_shutdown() and rmp_thread.isAlive():
+        if not out_flag.empty():
+            event_handler.handle_event[self.out_flags.get()]()
 
     #Noriginal thread number after node init 4, after setup communication thread 5, after setup rmp_node sub,pub 7

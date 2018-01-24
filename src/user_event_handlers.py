@@ -49,12 +49,11 @@ arising out of or based upon:
  \Platform: Cross Platform
 --------------------------------------------------------------------"""
 from system_defines import *
-import time,sys,os
+import time, sys, os
 
 """
 Define some general parameters for the example like various commands
 """
-RMP_CMD = [RMP_MOTION_CMD_ID,0.0,0.0]
 RMP_SET_TRACTOR = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,TRACTOR_REQUEST]
 RMP_SET_STANDBY = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,STANDBY_REQUEST]
 RMP_SET_BALANCE = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,BALANCE_REQUEST]
@@ -79,28 +78,25 @@ RMP_SONGS = [[RMP_CFG_CMD_ID,RMP_CMD_SET_AUDIO_COMMAND,MOTOR_AUDIO_PLAY_POWER_ON
 
 """
 This is the class that defines how to handle events passed up by the RMP class.
-These events currently include:
-RMP_IS_DEAD: The main loop should recongize that the RMP thread is no longer alive
-             and should try and respawn or kill the main loop
-
+These events currently include:	 
 RMP_TX_RDY: The RMP class can accept a new command. Commands sent before this event
-            will be queued and executed asyncronously. The user should only post new
-            commands once this event has been triggered
-
+			will be queued and executed asyncronously. The user should only post new
+			commands once this event has been triggered
+			
 RMP_RSP_DATA_RDY: A response packet is ready for the user.
 """
 class RMPEventHandlers:
-    def __init__(self,cmd,rsp,inflags):
-        """
-        Flag to run the loop
-        """
-        self._continue = True
+    def __init__(self, cmd, rsp, inflags, vel):
         self.start_time = time.time()
         self.song_playing = False
         self.idx = 0
         self.cmd_queue = cmd
         self.rsp_queue = rsp
         self.inflags = inflags
+        self.vel = vel
+
+        vel.twist.linear.x = 0.0
+        vel.twist.angular.z = 0.0
 
         """
         This is the dictionary that the outflags get passed to. Each one can be
@@ -109,21 +105,19 @@ class RMPEventHandlers:
 
         self.handle_event = dict({RMP_KILL:sys.exit,
                                   RMP_INIT_FAILED:self.InitFailedExit,
-                                  RMP_IS_DEAD:self.Kill_loop,
-                                  RMP_TX_RDY:self.Send_Cmd,
+                                  RMP_TX_RDY:self.SendMotionCmd,
                                   RMP_RSP_DATA_RDY:self.Get_Rsp,
                                   RMP_GOTO_STANDBY:self.GotoStandby,
                                   RMP_GOTO_TRACTOR:self.GotoTractor,
-			                      RMP_GOTO_BALANCE:self.GotoBalance})
+			          RMP_GOTO_BALANCE:self.GotoBalance})
 
+    def InitFailedExit(self):
+        print "RMP initialization failed...."
+        print "Exiting....."
+        sys.exit()
 
-
-
-    def Send_Cmd(self):
-        self.cmd_queue.put(RMP_CMD)
-
-    def Send_MotionCmd(self, x, z):
-        RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, x, z]
+    def SendMotionCmd(self):
+        RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, vel.twist.linear.x, vel.twist.angular.z]
         self.cmd_queue.put(RMP_MOTION_CMD)
 
     def Get_Rsp(self):
@@ -155,15 +149,3 @@ class RMPEventHandlers:
 
     def GotoBalance(self):
 	self.cmd_queue.put(RMP_SET_BALANCE)
-
-
-    def InitFailedExit(self):
-        print "RMP initialization failed...."
-        print "Exiting....."
-        self.inflags.put(RMP_KILL)
-        self._continue = False
-
-    def Kill_loop(self):
-        print "Loop terminated, killing RMP thread and exiting....."
-        self.inflags.put(RMP_KILL)
-        self._continue = False

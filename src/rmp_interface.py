@@ -53,7 +53,7 @@ from system_defines import *
 from rmp_config_params import *
 from user_event_handlers import *
 from io_eth_cmd import IO_ETHERNET
-import time,os,sys
+import time, os, sys
 
 
 """
@@ -66,11 +66,11 @@ Q15             = 32767
 Main class for the RMP interface
 """
 class RMP:
-    def __init__(self,rmp_addr,rsp_queue,cmd_queue,in_flags,out_flags,update_rate=MIN_UPDATE_PERIOD_SEC,log_data=False):        
+    def __init__(self, rmp_addr, rsp_queue, cmd_queue, in_flags, out_flags, update_rate = MIN_UPDATE_PERIOD_SEC, log_data = False):        
         """
         generate the CRC table
         """
-        generate_crc_table()        
+        generate_crc_table()
         
         """
         Create a dictionary for the feedback
@@ -177,7 +177,7 @@ class RMP:
         """
         Run the thread
         """
-        self.run()
+        #self.run()
         
     def run(self):
         while True:
@@ -189,29 +189,25 @@ class RMP:
                 if (RMP_KILL == self.in_flags.get()):
                     print "RMP thread has been killed by application......"
                     print "Exiting........."
-                    self.out_flags.put(RMP_IS_DEAD)
                     self.Close()
                     sys.exit() 
 
-            """
-            If enough time has passed since the last transmit, check the command
-            queue and send the next command. Then set the TX_RDY flag so the parent
-            knows that the queue can be repopulated
-            """
             if ((time.time() - self.last_update_time) > self.delay):
                 if not self.cmd_queue.empty():
                     self.update_rmp_commands(self.cmd_queue.get())
-                    
+
                 self.out_flags.put(RMP_TX_RDY)
                 self.last_update_time = time.time()
 
             """
             Check for data each time and put it in the queue is it exists.
             """
+            """
             data = self.comm.Receive(self.expected_items)
             if (self.update_feedback_dict(data,False)):
                 self.rsp_queue.put(self.user_defined_feedback)
                 self.out_flags.put(RMP_RSP_DATA_RDY)
+            """
 
     def set_and_verify_config_params(self,config):
         """
