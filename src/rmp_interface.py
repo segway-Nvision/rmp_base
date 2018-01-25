@@ -47,6 +47,7 @@ arising out of or based upon:
 
  \Platform: Cross Platform
 --------------------------------------------------------------------"""
+from threading import Thread
 from crc16  import *
 from utils import *
 from system_defines import *
@@ -65,8 +66,10 @@ Q15             = 32767
 """
 Main class for the RMP interface
 """
-class RMP:
-    def __init__(self, rmp_addr, rsp_queue, cmd_queue, in_flags, out_flags, update_rate = MIN_UPDATE_PERIOD_SEC, log_data = False):        
+class RMPThread(Thread):
+    def __init__(self, rmp_addr, rsp_queue, cmd_queue, in_flags, out_flags, update_rate = MIN_UPDATE_PERIOD_SEC, log_data = False):      
+        super(RMPThread, self).__init__()
+  
         """
         generate the CRC table
         """
@@ -122,7 +125,7 @@ class RMP:
         """
         Update the local feedback dictionary
         """
-        self.update_feedback_dict(None,True)
+        self.update_feedback_dict(None, True)
         
         """
         Get the RMP address
@@ -135,21 +138,18 @@ class RMP:
         if (update_rate >= MIN_UPDATE_PERIOD_SEC):
             self.delay = update_rate
         else:
-            print "Bad Update Period needs to be longer than 0.01s....."
+            print "Bad Update Period needs to be longer than 0.01s"
             print "Exiting......"
-            self.out_flags.put(RMP_INIT_FAILED)
             self.Close()
                     
         if (False == self.comm.success):
-            print "Could not connect to RMP UDP socket....."
+            print "Could not connect to RMP UDP socket"
             print "Exiting......"
-            self.out_flags.put(RMP_INIT_FAILED)
             self.Close()
             
         if (False == self.set_and_verify_config_params(CONFIG_PARAMS)):
-            print "Could not configure RMP......"
+            print "Could not configure RMP"
             print "Exiting......"
-            self.out_flags.put(RMP_INIT_FAILED)
             self.Close()
         
         """
@@ -177,7 +177,6 @@ class RMP:
         """
         Run the thread
         """
-        #self.run()
         
     def run(self):
         while True:
@@ -187,12 +186,11 @@ class RMP:
             """
             while not self.in_flags.empty():
                 if (RMP_KILL == self.in_flags.get()):
-                    print "RMP thread has been killed by application......"
+                    print "RMP thread has been killed by user"
                     print "Exiting........."
                     self.Close()
-                    sys.exit() 
 
-            if ((time.time() - self.last_update_time) > self.delay):
+            if ((time.time() - self.last_update_time) >= self.delay):
                 if not self.cmd_queue.empty():
                     self.update_rmp_commands(self.cmd_queue.get())
 
@@ -239,8 +237,8 @@ class RMP:
         are non-matching configuration parameters
         """
         if (False == success):
-            print "Could not set RMP_CMD_FORCE_CONFIG_FEEDBACK_BITMAPS....."
-            print "The platform did not respond, ensure it is operational and the IP address is correct...."
+            print "Could not set RMP_CMD_FORCE_CONFIG_FEEDBACK_BITMAPS"
+            print "The platform did not respond, ensure it is operational and the IP address is correct"
             return False
         else:
             non_matching_params = []
@@ -271,7 +269,7 @@ class RMP:
         Notify the user if we could not set the parameter
         """
         if (False == success):
-            print "Could not set param %(1)s....." %{"1":config_param_dict[idx+1]}
+            print "Could not set param %(1)s" %{"1":config_param_dict[idx+1]}
             print "The parameter is likely not valid, check it in rmp_config_params.py"
             return False
         

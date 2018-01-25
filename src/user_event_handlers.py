@@ -95,8 +95,8 @@ class RMPEventHandlers:
         self.inflags = inflags
         self.vel = vel
 
-        vel.twist.linear.x = 0.0
-        vel.twist.angular.z = 0.0
+        self.vel.twist.linear.x = 0.0
+        self.vel.twist.angular.z = 0.0
 
         """
         This is the dictionary that the outflags get passed to. Each one can be
@@ -104,39 +104,33 @@ class RMPEventHandlers:
         """
 
         self.handle_event = dict({RMP_KILL:sys.exit,
-                                  RMP_INIT_FAILED:self.InitFailedExit,
                                   RMP_TX_RDY:self.SendMotionCmd,
-                                  RMP_RSP_DATA_RDY:self.Get_Rsp,
+                                  RMP_RSP_DATA_RDY:self.GetRsp,
                                   RMP_GOTO_STANDBY:self.GotoStandby,
                                   RMP_GOTO_TRACTOR:self.GotoTractor,
-			          RMP_GOTO_BALANCE:self.GotoBalance})
-
-    def InitFailedExit(self):
-        print "RMP initialization failed...."
-        print "Exiting....."
-        sys.exit()
+			                      RMP_GOTO_BALANCE:self.GotoBalance})
 
     def SendMotionCmd(self):
-        RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, vel.twist.linear.x, vel.twist.angular.z]
+        RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, self.vel.twist.linear.x, self.vel.twist.angular.z]
         self.cmd_queue.put(RMP_MOTION_CMD)
 
-    def Get_Rsp(self):
+    def GetRsp(self):
         fb_dict = self.rsp_queue.get()
 
-        my_data = [['operational_time   : ',fb_dict["operational_time"]],
-                   ['inertial_x_acc_g   : ',fb_dict["inertial_x_acc_g"]],
-                   ['inertial_y_acc_g   : ',fb_dict["inertial_y_acc_g"]],
-                   ['inertial_x_rate_rps: ',fb_dict["inertial_x_rate_rps"]],
-                   ['inertial_y_rate_rps: ',fb_dict["inertial_y_rate_rps"]],
-                   ['inertial_z_rate_rps: ',fb_dict["inertial_z_rate_rps"]],
-                   ['pse_pitch_deg      : ',fb_dict["pse_pitch_deg"]],
-                   ['pse_roll_deg       : ',fb_dict["pse_roll_deg"]],
-                   ['pse_roll_rate_dps  : ',fb_dict["pse_roll_rate_dps"]],
-                   ['pse_yaw_rate_dps   : ',fb_dict["pse_yaw_rate_dps"]]]
+        my_data = [['operational_time   : ', fb_dict["operational_time"]],
+                   ['inertial_x_acc_g   : ', fb_dict["inertial_x_acc_g"]],
+                   ['inertial_y_acc_g   : ', fb_dict["inertial_y_acc_g"]],
+                   ['inertial_x_rate_rps: ', fb_dict["inertial_x_rate_rps"]],
+                   ['inertial_y_rate_rps: ', fb_dict["inertial_y_rate_rps"]],
+                   ['inertial_z_rate_rps: ', fb_dict["inertial_z_rate_rps"]],
+                   ['pse_pitch_deg      : ', fb_dict["pse_pitch_deg"]],
+                   ['pse_roll_deg       : ', fb_dict["pse_roll_deg"]],
+                   ['pse_roll_rate_dps  : ', fb_dict["pse_roll_rate_dps"]],
+                   ['pse_yaw_rate_dps   : ', fb_dict["pse_yaw_rate_dps"]]]
 
         temp = ""
-        for i in range(0,len(my_data)):
-            temp += my_data[i][0]+str(my_data[i][1])+"\n"
+        for i in range(0, len(my_data)):
+            temp += my_data[i][0] + str(my_data[i][1]) + "\n"
 
         os.system('cls')
         print temp
@@ -148,4 +142,4 @@ class RMPEventHandlers:
         self.cmd_queue.put(RMP_SET_TRACTOR)
 
     def GotoBalance(self):
-	self.cmd_queue.put(RMP_SET_BALANCE)
+        self.cmd_queue.put(RMP_SET_BALANCE)
