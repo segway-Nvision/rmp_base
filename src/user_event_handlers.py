@@ -50,6 +50,7 @@ arising out of or based upon:
 --------------------------------------------------------------------"""
 from system_defines import *
 import time, sys, os
+from geometry_msgs.msg import TwistStamped
 
 """
 Define some general parameters for the example like various commands
@@ -77,6 +78,13 @@ RMP_SONGS = [[RMP_CFG_CMD_ID,RMP_CMD_SET_AUDIO_COMMAND,MOTOR_AUDIO_PLAY_POWER_ON
              [RMP_CFG_CMD_ID,RMP_CMD_SET_AUDIO_COMMAND,MOTOR_AUDIO_SIMULATE_MOTOR_NOISE]]
 
 """
+Velocity limit of RMP
+"""
+
+MAX_LINEAR_VEL = 0.6
+MAX_ANGULAR_VEL = 3.15
+
+"""
 This is the class that defines how to handle events passed up by the RMP class.
 These events currently include:	 
 RMP_TX_RDY: The RMP class can accept a new command. Commands sent before this event
@@ -86,35 +94,37 @@ RMP_TX_RDY: The RMP class can accept a new command. Commands sent before this ev
 RMP_RSP_DATA_RDY: A response packet is ready for the user.
 """
 class RMPEventHandlers:
-    def __init__(self, cmd, rsp, inflags, vel):
+    def __init__(self, cmd_queue, rsp_queue, in_flags, rmp_thread):
         self.start_time = time.time()
         self.song_playing = False
         self.idx = 0
-        self.cmd_queue = cmd
-        self.rsp_queue = rsp
-        self.inflags = inflags
-        self.vel = vel
-
+        self.vel = TwistStamped()
         self.vel.twist.linear.x = 0.0
         self.vel.twist.angular.z = 0.0
+        self.cmd_queue = cmd_queue
+        self.rsp_queue = rsp_queue
+        self.in_flags = in_flags
 
         """
         This is the dictionary that the outflags get passed to. Each one can be
         redefined to be passed to whatever user function you would like
         """
 
-        self.handle_event = dict({RMP_KILL:sys.exit,
-                                  RMP_TX_RDY:self.SendMotionCmd,
-                                  RMP_RSP_DATA_RDY:self.GetRsp,
-                                  RMP_GOTO_STANDBY:self.GotoStandby,
-                                  RMP_GOTO_TRACTOR:self.GotoTractor,
-			                      RMP_GOTO_BALANCE:self.GotoBalance})
+        self.handle_event = dict({RMP_KILL:shutdown,
+                                  RMP_TX_RDY:self.send_motion_cmd,
+                                  RMP_RSP_DATA_RDY:self.get_rsp,
+                                  RMP_GOTO_STANDBY:self.goto_standby,
+                                  RMP_GOTO_TRACTOR:self.goto_tractor,
+			                      RMP_GOTO_BALANCE:self.goto_balance})
 
-    def SendMotionCmd(self):
+    def shutdown(self):
+        in_flags.put(RMP_KILL) # Kill rmp_thread
+
+    def send_motion_cmd(self):
         RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, self.vel.twist.linear.x, self.vel.twist.angular.z]
         self.cmd_queue.put(RMP_MOTION_CMD)
 
-    def GetRsp(self):
+    def get_rsp(self):
         fb_dict = self.rsp_queue.get()
 
         my_data = [['operational_time   : ', fb_dict["operational_time"]],
@@ -135,11 +145,21 @@ class RMPEventHandlers:
         os.system('cls')
         print temp
 
-    def GotoStandby(self):
+    def goto_standby(self):
         self.cmd_queue.put(RMP_SET_STANDBY)
 
-    def GotoTractor(self):
+    def goto_tractor(self):
         self.cmd_queue.put(RMP_SET_TRACTOR)
 
-    def GotoBalance(self):
+    def goto_balance(self):
         self.cmd_queue.put(RMP_SET_BALANCE)
+
+    def update_vel(self, new_vel):
+        if (abs(msg.twist.linear.x) < MAX_LINEAR_VEL): # Update if the new velocity is in bound
+            self.vel.twist.linear.x = new_vel.twist.linear.x
+        else:
+            print "Linear velocity out of limit +-%f" % MAX_LINEAR_VEL
+        if (abs(msg.twist.angular.z) < MAX_ANGULAR_VEL):
+            self.vel.twist.linear.z = new_vel.twist.angular.z
+        else:
+            print "Angular velocity out of limit +-%f" % MAX_ANGULAR_VEL

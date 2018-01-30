@@ -329,7 +329,7 @@ class RMPThread(Thread):
         """
         if (True == send_cmd):
                 
-            output = self.Convert_RMP_Cmds_for_Serial_Interface(cmds)
+            output = self.convert_rmp_cmds_for_serial_interface(cmds)
             self.comm.Send(output)
             
         return send_cmd
@@ -413,7 +413,7 @@ class RMPThread(Thread):
         self.comm.Close()
         sys.exit()
             
-    def Convert_RMP_Cmds_for_Serial_Interface(self,cmds):
+    def convert_rmp_cmds_for_serial_interface(self, cmds):
         """
         Convert a set of commands for the UDP Ethernet interface
         """
