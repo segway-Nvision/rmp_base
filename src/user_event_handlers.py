@@ -49,8 +49,10 @@ arising out of or based upon:
  \Platform: Cross Platform
 --------------------------------------------------------------------"""
 from system_defines import *
-import time, sys, os
+import time, sys, os, multiprocessing
+from rmp_interface import RMPThread
 from geometry_msgs.msg import TwistStamped
+
 
 """
 Define some general parameters for the example like various commands
@@ -94,30 +96,37 @@ RMP_TX_RDY: The RMP class can accept a new command. Commands sent before this ev
 RMP_RSP_DATA_RDY: A response packet is ready for the user.
 """
 class RMPEventHandlers:
-    def __init__(self, cmd_queue, rsp_queue, in_flags, rmp_thread):
+    def __init__(self, rmp_addr, UPDATE_DELAY_SEC, LOG_DATA):
         self.start_time = time.time()
         self.song_playing = False
         self.idx = 0
+        self.rsp_queue = multiprocessing.Queue()
+        self.cmd_queue = multiprocessing.Queue()
+        self.in_flags  = multiprocessing.Queue()
+        self.out_flags = multiprocessing.Queue()
         self.vel = TwistStamped()
         self.vel.twist.linear.x = 0.0
         self.vel.twist.angular.z = 0.0
-        self.cmd_queue = cmd_queue
-        self.rsp_queue = rsp_queue
-        self.in_flags = in_flags
+
+        # Setup communication thread
+        self.rmp_thread = RMPThread(rmp_addr, rsp_queue, cmd_queue, in_flags, out_flags, UPDATE_DELAY_SEC, LOG_DATA)
 
         """
         This is the dictionary that the outflags get passed to. Each one can be
         redefined to be passed to whatever user function you would like
         """
 
-        self.handle_event = dict({RMP_KILL:shutdown,
-                                  RMP_TX_RDY:self.send_motion_cmd,
-                                  RMP_RSP_DATA_RDY:self.get_rsp,
-                                  RMP_GOTO_STANDBY:self.goto_standby,
-                                  RMP_GOTO_TRACTOR:self.goto_tractor,
-			                      RMP_GOTO_BALANCE:self.goto_balance})
+        self.handle = dict({RMP_KILL:         self.kill_thread,
+                            RMP_TX_RDY:       self.send_motion_cmd,
+                            RMP_RSP_DATA_RDY: self.get_rsp,
+                            RMP_GOTO_STANDBY: self.goto_standby,
+                            RMP_GOTO_TRACTOR: self.goto_tractor,
+                            RMP_GOTO_BALANCE: self.goto_balance})
 
-    def shutdown(self):
+    def start_thread(self):
+        self.rmp_thread.start()
+
+    def kill_thread(self):
         in_flags.put(RMP_KILL) # Kill rmp_thread
 
     def send_motion_cmd(self):
@@ -155,7 +164,8 @@ class RMPEventHandlers:
         self.cmd_queue.put(RMP_SET_BALANCE)
 
     def update_vel(self, new_vel):
-        if (abs(msg.twist.linear.x) < MAX_LINEAR_VEL): # Update if the new velocity is in bound
+        # Update if the new velocity is in bound
+        if (abs(msg.twist.linear.x) < MAX_LINEAR_VEL):
             self.vel.twist.linear.x = new_vel.twist.linear.x
         else:
             print "Linear velocity out of limit +-%f" % MAX_LINEAR_VEL

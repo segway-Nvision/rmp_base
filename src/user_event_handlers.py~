@@ -49,12 +49,14 @@ arising out of or based upon:
  \Platform: Cross Platform
 --------------------------------------------------------------------"""
 from system_defines import *
-import time,sys,os
+import time, sys, os, multiprocessing
+from rmp_interface import RMPThread # Import module. Not limited to modules in this pkg.
+from geometry_msgs.msg import TwistStamped
+
 
 """
 Define some general parameters for the example like various commands
 """
-RMP_CMD = [RMP_MOTION_CMD_ID,0.0,0.0]
 RMP_SET_TRACTOR = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,TRACTOR_REQUEST]
 RMP_SET_STANDBY = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,STANDBY_REQUEST]
 RMP_SET_BALANCE = [RMP_CFG_CMD_ID,RMP_CMD_SET_OPERATIONAL_MODE,BALANCE_REQUEST]
@@ -78,107 +80,96 @@ RMP_SONGS = [[RMP_CFG_CMD_ID,RMP_CMD_SET_AUDIO_COMMAND,MOTOR_AUDIO_PLAY_POWER_ON
              [RMP_CFG_CMD_ID,RMP_CMD_SET_AUDIO_COMMAND,MOTOR_AUDIO_SIMULATE_MOTOR_NOISE]]
 
 """
+Velocity limit of RMP
+"""
+
+MAX_LINEAR_VEL = 0.6
+MAX_ANGULAR_VEL = 3.15
+
+"""
 This is the class that defines how to handle events passed up by the RMP class.
-These events currently include:
-RMP_IS_DEAD: The main loop should recongize that the RMP thread is no longer alive
-             and should try and respawn or kill the main loop
-
+These events currently include:	 
 RMP_TX_RDY: The RMP class can accept a new command. Commands sent before this event
-            will be queued and executed asyncronously. The user should only post new
-            commands once this event has been triggered
-
+			will be queued and executed asyncronously. The user should only post new
+			commands once this event has been triggered
+			
 RMP_RSP_DATA_RDY: A response packet is ready for the user.
 """
 class RMPEventHandlers:
-    def __init__(self,cmd,rsp,inflags):
-        """
-        Flag to run the loop
-        """
-        self._continue = True
+    def __init__(self, rmp_addr, UPDATE_DELAY_SEC, LOG_DATA):
         self.start_time = time.time()
         self.song_playing = False
         self.idx = 0
-        self.cmd_queue = cmd
-        self.rsp_queue = rsp
-        self.inflags = inflags
+        self.rsp_queue = multiprocessing.Queue()
+        self.cmd_queue = multiprocessing.Queue()
+        self.in_flags  = multiprocessing.Queue()
+        self.out_flags = multiprocessing.Queue()
+        self.vel = TwistStamped()
+        self.vel.twist.linear.x = 0.0
+        self.vel.twist.angular.z = 0.0
+
+        # Setup communication thread
+        self.rmp_thread = RMPThread(rmp_addr, rsp_queue, cmd_queue, in_flags, out_flags, UPDATE_DELAY_SEC, LOG_DATA)
 
         """
         This is the dictionary that the outflags get passed to. Each one can be
         redefined to be passed to whatever user function you would like
         """
 
-        self.handle_event = dict({RMP_KILL:sys.exit,
-                                  RMP_INIT_FAILED:self.InitFailedExit,
-                                  RMP_IS_DEAD:self.Kill_loop,
-                                  RMP_TX_RDY:self.Send_Cmd,
-                                  RMP_RSP_DATA_RDY:self.Get_Rsp,
-                                  RMP_GOTO_STANDBY:self.GotoStandby,
-                                  RMP_GOTO_TRACTOR:self.GotoTractor,
-			                      RMP_GOTO_BALANCE:self.GotoBalance})
+        self.handle = dict({RMP_KILL:         self.kill_thread,
+                            RMP_TX_RDY:       self.send_motion_cmd,
+                            RMP_RSP_DATA_RDY: self.get_rsp,
+                            RMP_GOTO_STANDBY: self.goto_standby,
+                            RMP_GOTO_TRACTOR: self.goto_tractor,
+                            RMP_GOTO_BALANCE: self.goto_balance})
 
+    def start_thread(self):
+        self.rmp_thread.start()
 
+    def kill_thread(self):
+        in_flags.put(RMP_KILL) # Kill rmp_thread
 
-
-    def Send_Cmd(self):
-        """
-        if ((time.time() - self.start_time) > 1.5):
-            self.start_time = time.time()
-            if self.song_playing:
-                self.cmd_queue.put(RMP_STOP_SONG)
-                self.song_playing = False
-            else:
-                self.cmd_queue.put(RMP_SONGS[self.idx])
-                self.song_playing = True
-                self.idx += 1
-                if (self.idx > 15):
-                    self._continue = False
-        else:
-            self.cmd_queue.put(RMP_CMD)
-        """
-        self.cmd_queue.put(RMP_CMD)
-
-    def Send_MotionCmd(self, x, z):
-        RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, x, z]
+    def send_motion_cmd(self):
+        RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, self.vel.twist.linear.x, self.vel.twist.angular.z]
         self.cmd_queue.put(RMP_MOTION_CMD)
 
-    def Get_Rsp(self):
+    def get_rsp(self):
         fb_dict = self.rsp_queue.get()
 
-        my_data = [['operational_time   : ',fb_dict["operational_time"]],
-                   ['inertial_x_acc_g   : ',fb_dict["inertial_x_acc_g"]],
-                   ['inertial_y_acc_g   : ',fb_dict["inertial_y_acc_g"]],
-                   ['inertial_x_rate_rps: ',fb_dict["inertial_x_rate_rps"]],
-                   ['inertial_y_rate_rps: ',fb_dict["inertial_y_rate_rps"]],
-                   ['inertial_z_rate_rps: ',fb_dict["inertial_z_rate_rps"]],
-                   ['pse_pitch_deg      : ',fb_dict["pse_pitch_deg"]],
-                   ['pse_roll_deg       : ',fb_dict["pse_roll_deg"]],
-                   ['pse_roll_rate_dps  : ',fb_dict["pse_roll_rate_dps"]],
-                   ['pse_yaw_rate_dps   : ',fb_dict["pse_yaw_rate_dps"]]]
+        my_data = [['operational_time   : ', fb_dict["operational_time"]],
+                   ['inertial_x_acc_g   : ', fb_dict["inertial_x_acc_g"]],
+                   ['inertial_y_acc_g   : ', fb_dict["inertial_y_acc_g"]],
+                   ['inertial_x_rate_rps: ', fb_dict["inertial_x_rate_rps"]],
+                   ['inertial_y_rate_rps: ', fb_dict["inertial_y_rate_rps"]],
+                   ['inertial_z_rate_rps: ', fb_dict["inertial_z_rate_rps"]],
+                   ['pse_pitch_deg      : ', fb_dict["pse_pitch_deg"]],
+                   ['pse_roll_deg       : ', fb_dict["pse_roll_deg"]],
+                   ['pse_roll_rate_dps  : ', fb_dict["pse_roll_rate_dps"]],
+                   ['pse_yaw_rate_dps   : ', fb_dict["pse_yaw_rate_dps"]]]
 
         temp = ""
-        for i in range(0,len(my_data)):
-            temp += my_data[i][0]+str(my_data[i][1])+"\n"
+        for i in range(0, len(my_data)):
+            temp += my_data[i][0] + str(my_data[i][1]) + "\n"
 
         os.system('cls')
         print temp
 
-    def GotoStandby(self):
+    def goto_standby(self):
         self.cmd_queue.put(RMP_SET_STANDBY)
 
-    def GotoTractor(self):
+    def goto_tractor(self):
         self.cmd_queue.put(RMP_SET_TRACTOR)
 
-    def GotoBalance(self):
-	self.cmd_queue.put(RMP_SET_BALANCE)
+    def goto_balance(self):
+        self.cmd_queue.put(RMP_SET_BALANCE)
 
-
-    def InitFailedExit(self):
-        print "RMP initialization failed...."
-        print "Exiting....."
-        self.inflags.put(RMP_KILL)
-        self._continue = False
-
-    def Kill_loop(self):
-        print "Loop terminated, killing RMP thread and exiting....."
-        self.inflags.put(RMP_KILL)
-        self._continue = False
+    def update_vel(self, new_vel):
+        # Update if the new velocity is in bound
+        if (abs(msg.twist.linear.x) < MAX_LINEAR_VEL):
+            self.vel.twist.linear.x = new_vel.twist.linear.x
+        else:
+            print "Linear velocity out of limit +-%f" % MAX_LINEAR_VEL
+        if (abs(msg.twist.angular.z) < MAX_ANGULAR_VEL):
+            self.vel.twist.linear.z = new_vel.twist.angular.z
+        else:
+            print "Angular velocity out of limit +-%f" % MAX_ANGULAR_VEL

@@ -140,17 +140,17 @@ class RMPThread(Thread):
         else:
             print "Bad Update Period needs to be longer than 0.01s"
             print "Exiting......"
-            self.Close()
+            self.close()
                     
         if (False == self.comm.success):
             print "Could not connect to RMP UDP socket"
             print "Exiting......"
-            self.Close()
+            self.close()
             
         if (False == self.set_and_verify_config_params(CONFIG_PARAMS)):
             print "Could not configure RMP"
             print "Exiting......"
-            self.Close()
+            self.close()
         
         """
         Get the queues and the time stamps now that initialization was successful
@@ -188,7 +188,7 @@ class RMPThread(Thread):
                 if (RMP_KILL == self.in_flags.get()):
                     print "RMP thread has been killed by user"
                     print "Exiting........."
-                    self.Close()
+                    self.close()
 
             if ((time.time() - self.last_update_time) >= self.delay):
                 if not self.cmd_queue.empty():
@@ -407,7 +407,7 @@ class RMPThread(Thread):
         
         return ret
             
-    def Close(self):
+    def close(self):
         if (True == self.logfile_started):
             self.logfile.close()
         self.comm.Close()
