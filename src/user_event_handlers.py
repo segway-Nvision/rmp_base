@@ -109,7 +109,7 @@ class RMPEventHandlers:
         self.vel.twist.angular.z = 0.0
 
         # Setup communication thread
-        self.rmp_thread = RMPThread(rmp_addr, rsp_queue, cmd_queue, in_flags, out_flags, UPDATE_DELAY_SEC, LOG_DATA)
+        self.rmp_thread = RMPThread(rmp_addr, self.rsp_queue, self.cmd_queue, self.in_flags, self.out_flags, UPDATE_DELAY_SEC, LOG_DATA)
 
         """
         This is the dictionary that the outflags get passed to. Each one can be
@@ -127,7 +127,7 @@ class RMPEventHandlers:
         self.rmp_thread.start()
 
     def kill_thread(self):
-        in_flags.put(RMP_KILL) # Kill rmp_thread
+        self.in_flags.put(RMP_KILL) # Kill rmp_thread
 
     def send_motion_cmd(self):
         RMP_MOTION_CMD = [RMP_MOTION_CMD_ID, self.vel.twist.linear.x, self.vel.twist.angular.z]
@@ -165,11 +165,11 @@ class RMPEventHandlers:
 
     def update_vel(self, new_vel):
         # Update if the new velocity is in bound
-        if (abs(msg.twist.linear.x) < MAX_LINEAR_VEL):
+        if (abs(new_vel.twist.linear.x) < MAX_LINEAR_VEL):
             self.vel.twist.linear.x = new_vel.twist.linear.x
         else:
             print "Linear velocity out of limit +-%f" % MAX_LINEAR_VEL
-        if (abs(msg.twist.angular.z) < MAX_ANGULAR_VEL):
+        if (abs(new_vel.twist.angular.z) < MAX_ANGULAR_VEL):
             self.vel.twist.linear.z = new_vel.twist.angular.z
         else:
             print "Angular velocity out of limit +-%f" % MAX_ANGULAR_VEL

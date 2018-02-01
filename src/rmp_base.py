@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, time, threading, signal
+import sys, time, threading, signal, rospy
 from system_defines import *
 from user_event_handlers import RMPEventHandlers
 from rmp_ros_wrapper import MotionCmdSubscriber
@@ -8,7 +8,7 @@ from rmp_ros_wrapper import MotionCmdSubscriber
 Define the update delay or update period in seconds. Must be greater
 than the minimum of 0.01s
 """
-UPDATE_DELAY_SEC = 0.05
+UPDATE_DELAY_SEC = 0.01
 
 """
 Define whether to log the output data in a file. This will create a unique CSV

@@ -238,7 +238,7 @@ class RMPThread(Thread):
         """
         if (False == success):
             print "Could not set RMP_CMD_FORCE_CONFIG_FEEDBACK_BITMAPS"
-            print "The platform did not respond, ensure it is operational and the IP address is correct"
+            print "The platform did not respond,\nensure it is operational and the IP address is correct"
             return False
         else:
             non_matching_params = []
