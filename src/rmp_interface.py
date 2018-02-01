@@ -54,7 +54,7 @@ from system_defines import *
 from rmp_config_params import *
 from user_event_handlers import *
 from io_eth_cmd import IO_ETHERNET
-import time, os, sys
+import time, os, sys, rospy
 
 
 """
@@ -89,7 +89,7 @@ class RMPThread(Thread):
         Initialize the bitmaps and create a dictionary for holding the
         user defined feedback data
         """
-        self.bitmap = [0]*4
+        self.bitmap = [0] * 4
         self.bitmap[0] = CONFIG_PARAMS[RMP_CMD_SET_USER_FB_1_BITMAP-1][2]
         self.bitmap[1] = CONFIG_PARAMS[RMP_CMD_SET_USER_FB_2_BITMAP-1][2]
         self.bitmap[2] = CONFIG_PARAMS[RMP_CMD_SET_USER_FB_3_BITMAP-1][2]
@@ -170,7 +170,7 @@ class RMPThread(Thread):
             if (False == os.path.exists(dirpath)):
                 os.mkdir(dirpath)
             filename = dirpath + "/" + "RMP_DATA_LOG_" + time.strftime("%m%d%Y_%H%M%S") + ".csv"
-            self.logfile = open(filename,'w')
+            self.logfile = open(filename, 'w')
             self.logfile.write(','.join(self.log_file_header))
             self.logfile_started = True 
             
@@ -207,14 +207,14 @@ class RMPThread(Thread):
                 self.out_flags.put(RMP_RSP_DATA_RDY)
             """
 
-    def set_and_verify_config_params(self,config):
+    def set_and_verify_config_params(self, config):
         """
         The commands that force the feedback array to just contain the configurable elements
         but not update the UDFB to do so. This allows the user to verify the configuration
         while it is changing.
         """
-        force_nvm_feedback = [RMP_CFG_CMD_ID,RMP_CMD_FORCE_CONFIG_FEEDBACK_BITMAPS,1]
-        set_user_feedback = [RMP_CFG_CMD_ID,RMP_CMD_FORCE_CONFIG_FEEDBACK_BITMAPS,0]
+        force_nvm_feedback = [RMP_CFG_CMD_ID,RMP_CMD_FORCE_CONFIG_FEEDBACK_BITMAPS, 1]
+        set_user_feedback  = [RMP_CFG_CMD_ID,RMP_CMD_FORCE_CONFIG_FEEDBACK_BITMAPS, 0]
         
         
         """
@@ -223,7 +223,7 @@ class RMPThread(Thread):
         """
         attempts = 0
         success = False
-        while ((False == success) and (attempts<10)):
+        while ((False == success) and (attempts < 10)):
             self.update_rmp_commands(force_nvm_feedback)
             time.sleep(0.05)
             loaded_params = self.comm.Receive(FORCED_CONFIG_FEEDBACK_ITEMS)
@@ -242,7 +242,7 @@ class RMPThread(Thread):
             return False
         else:
             non_matching_params = []
-            for i in range(0,NUMBER_OF_NVM_CONFIG_PARAMS):
+            for i in range(0, NUMBER_OF_NVM_CONFIG_PARAMS):
                 if (loaded_params[i] != config[i][2]):
                     non_matching_params.append(i)
         
@@ -253,8 +253,8 @@ class RMPThread(Thread):
         for i in range(0,len(non_matching_params)):
             idx = non_matching_params[i]
             success = False
-            while ((False == success) and (attempts<10)):
-                attempts+=1
+            while ((False == success) and (attempts < 10)):
+                attempts += 1
                 self.update_rmp_commands(config[idx])
                 time.sleep(0.05)
                 loaded_params = self.comm.Receive(FORCED_CONFIG_FEEDBACK_ITEMS)
@@ -269,7 +269,7 @@ class RMPThread(Thread):
         Notify the user if we could not set the parameter
         """
         if (False == success):
-            print "Could not set param %(1)s" %{"1":config_param_dict[idx+1]}
+            print "Could not set param %(1)s" % {"1": config_param_dict[idx+1]}
             print "The parameter is likely not valid, check it in rmp_config_params.py"
             return False
         
@@ -278,7 +278,7 @@ class RMPThread(Thread):
         """
         attempts = 0
         success = False
-        while ((False == success) and (attempts<10)):
+        while ((False == success) and (attempts < 10)):
             self.update_rmp_commands(set_user_feedback)
             time.sleep(0.05)
             data = self.comm.Receive(self.expected_items)
@@ -291,13 +291,13 @@ class RMPThread(Thread):
         Could not reset the feedback 
         """
         if (False == success):
-            print "Could not set user defined feedback" %{"1":idx+1}
+            print "Could not set user defined feedback" % {"1": idx+1}
             print "The platform did not respond, "
             return False
         
         return True
     
-    def update_rmp_commands(self,input_cmd):
+    def update_rmp_commands(self, input_cmd):
        
         """
         Populate the message to the RMP platform if it is not a
@@ -334,7 +334,7 @@ class RMPThread(Thread):
             
         return send_cmd
     
-    def update_feedback_dict(self,data=None,init=False):
+    def update_feedback_dict(self, data = None, init = False):
         ret = True
         
         """
@@ -344,27 +344,27 @@ class RMPThread(Thread):
         item = 0
         if init:
             self.log_file_header = ["Time_stamp"]
-            for x in range(0,4):                
-                for i in range(0,32):
-                    if (self.bitmap[x] & (1<<i)):
-                        if (self.fp_mask[x] & (1<<i)):
-                            self.log_file_header.append(self.hdr_dicts[x][(1<<i)])
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = 0.0
+            for x in range(0, 4):                
+                for i in range(0, 32):
+                    if (self.bitmap[x] & (1 << i)):
+                        if (self.fp_mask[x] & (1 << i)):
+                            self.log_file_header.append(self.hdr_dicts[x][(1 << i)])
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = 0.0
                         elif (self.hex_mask[x] & (1 << i)):
-                            self.log_file_header.append(self.hdr_dicts[x][(1<<i)])
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = hex(0)
+                            self.log_file_header.append(self.hdr_dicts[x][(1 << i)])
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = hex(0)
                         elif (self.ip_mask[x] & (1 << i)):
-                            self.log_file_header.append(self.hdr_dicts[x][(1<<i)])
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = numToDottedQuad(0)
+                            self.log_file_header.append(self.hdr_dicts[x][(1 << i)])
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = numToDottedQuad(0)
                         else:
-                            self.log_file_header.append(self.hdr_dicts[x][(1<<i)])
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = 0
+                            self.log_file_header.append(self.hdr_dicts[x][(1 << i)])
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = 0
                         
-                        item +=1
+                        item += 1
             """
             Add one for the CRC
             """
-            self.expected_items = item+1
+            self.expected_items = item + 1
             
             """
             Append a line end to the logfile header
@@ -378,21 +378,21 @@ class RMPThread(Thread):
             temp = []
             temp.append(str(time.time() - self.log_file_start_time))
             self.user_defined_feedback.clear();
-            for x in range(0,4):
-                for i in range(0,32):
-                    if (self.bitmap[x] & (1<<i)): 
-                        if (self.fp_mask[x] & (1<<i)):
-                            temp.append(str(round(convert_u32_to_float(data[item]),3)))
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = round(convert_u32_to_float(data[item]),3);
+            for x in range(0, 4):
+                for i in range(0, 32):
+                    if (self.bitmap[x] & (1 << i)): 
+                        if (self.fp_mask[x] & (1 << i)):
+                            temp.append(str(round(convert_u32_to_float(data[item]), 3)))
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = round(convert_u32_to_float(data[item]), 3);
                         elif (self.hex_mask[x] & (1 << i)):
-                            temp.append("0x%(1)08X" %{"1":data[item]})
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = hex(data[item]);
+                            temp.append("0x%(1)08X" % {"1":data[item]})
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = hex(data[item]);
                         elif (self.ip_mask[x] & (1 << i)):
                             temp.append(str(numToDottedQuad(data[item])))
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = numToDottedQuad(data[item]);
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = numToDottedQuad(data[item]);
                         else:
                             temp.append(str(int(data[item])))
-                            self.user_defined_feedback[self.hdr_dicts[x][(1<<i)]] = int(data[item]);
+                            self.user_defined_feedback[self.hdr_dicts[x][(1 << i)]] = int(data[item]);
                         
                         item += 1
             
@@ -439,7 +439,7 @@ class RMPThread(Thread):
         Convert the string to char data and return it
         """
         rmp_cmd_chars = []
-        for x in range(0,len(rmp_cmd)):
+        for x in range(0, len(rmp_cmd)):
             rmp_cmd_chars.append(chr(rmp_cmd[x]))   
         
         output = ''.join(rmp_cmd_chars)

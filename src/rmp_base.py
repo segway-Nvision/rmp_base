@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, time, threading, signal, rospy
+import sys, time, signal, rospy
 from system_defines import *
 from user_event_handlers import RMPEventHandlers
 from rmp_ros_wrapper import MotionCmdSubscriber
@@ -38,7 +38,8 @@ if __name__ == '__main__':
 
     while not rospy.is_shutdown() and rmp_thread.isAlive():
         if not out_flags.empty():
-            event_handler.handle[out_flags.get()]()
+            flag = out_flags.get()
+            event_handler.handle[flag]()
     print "Killing process..."
     event_handler.kill_thread()
 
