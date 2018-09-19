@@ -5,7 +5,6 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  rmp_msgs
   tf
   geometry_msgs
   nav_msgs
@@ -18,7 +17,7 @@ catkin_python_setup()
 catkin_package(
  INCLUDE_DIRS include
 #  LIBRARIES pkg_name
- CATKIN_DEPENDS rmp_msgs roscpp rospy tf geometry_msgs nav_msgs sensor_msgs std_msgs
+ CATKIN_DEPENDS roscpp rospy tf geometry_msgs nav_msgs sensor_msgs std_msgs
 #  DEPENDS system_lib
 )
 

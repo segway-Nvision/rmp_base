@@ -53,7 +53,6 @@ For the tutorial, see [](#ros-python-howto).
   <build_depend>geometry_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>nav_msgs</build_depend>
-  <build_depend>rmp_msgs</build_depend>
   <build_depend>tf</build_depend>
 
   <run_depend>roscpp</run_depend>
@@ -62,7 +61,6 @@ For the tutorial, see [](#ros-python-howto).
   <run_depend>geometry_msgs</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>nav_msgs</run_depend>
-  <run_depend>rmp_msgs</run_depend>
   <run_depend>tf</run_depend>
 
 
